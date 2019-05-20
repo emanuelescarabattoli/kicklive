@@ -1,0 +1,280 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="shortcut icon" type="image/x-icon" href="https://tabula.games/wp-content/uploads/2017/08/icon-tabula-blue.png">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Open+Sans&display=swap');
+
+        html,
+        body {
+            margin: 0px;
+            padding: 0px;
+            background-color: #e0e0e0;
+            font-family: "Open Sans"
+        }
+
+        .header {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            grid-column-gap: 1.5rem;
+            background-color: #222222;
+            box-shadow: 0px 0px 5px 0px #00000099;
+            color: #f0f0f0;
+        }
+
+        .logo img {
+            width: 100%;
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+        }
+
+        .title h3 {
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .content {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-column-gap: 1.5rem;
+        }
+
+        .stats-header {
+            background-color: #222222;
+            padding: 1rem;
+            color: #f0f0f0;
+        }
+
+        .stats-body {
+            padding: 1rem;
+            background-color: #f0f0f0;
+        }
+
+        .stats-body p {
+            margin: 0px;
+            padding: 0px;
+            font-size: 2rem;
+        }
+
+        .stats-body span {
+            display: block;
+            margin: 0px 0px 0.2rem 0px;
+            padding: 0px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: #222222cc;
+        }
+
+        .stats-body p:first-child {
+            margin: 0px 0px 1rem 0px;
+            padding: 0px;
+        }
+
+        .stats {
+            box-shadow: 0px 3px 3px -3px #00000044;
+        }
+
+        .stats+.stats {
+            margin-top: 1.5rem;
+        }
+
+        .chart {
+            height: 210px;
+        }
+
+        .percentage {
+            margin-top: 0.5rem;
+            height: 10px;
+            background-color: #dddddd;
+        }
+
+        #percentage_indicator {
+            height: 100%;
+            width: 0%;
+            background-color: #00cc00;
+        }
+    </style>
+
+    <title>Icaion campaign stats</title>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="logo">
+            <img
+                src="https://images.squarespace-cdn.com/content/5a310de5d0e62885f537c006/1552993093655-JX0JYJP972NVYYES2Z10/?content-type=image%2Fpng">
+        </div>
+        <div class="title">
+            <h3>
+                Campaign stats
+            </h3>
+        </div>
+    </div>
+    <div class="content">
+        <div>
+            <div class="stats">
+                <div class="stats-header">
+                    Live updates
+                </div>
+                <div class="stats-body">
+                    <span>Pledged</span>
+                    <p id="pledged"></p>
+                    <span>Backers</span>
+                    <p id="backers"></p>
+                    <span>Comments</span>
+                    <p id="comments"></p>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stats-header">
+                    Founded
+                </div>
+                <div class="stats-body">
+                    <span>Founded</span>
+                    <p id="founded"></p>
+                    <div class="percentage">
+                        <div id="percentage_indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="stats">
+                <div class="stats-header">
+                    Charts
+                </div>
+                <div class="stats-body">
+                    <div class="chart">
+                        <canvas id="chart_pledged"></canvas>
+                    </div>
+                    <div class="chart">
+                        <canvas id="chart_backers"></canvas>
+                    </div>
+                    <div class="chart">
+                        <canvas id="chart_comments"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+    <script>
+
+        var snapshots = [];
+
+        $(function () {
+            setInterval(doRequest, 800);
+        });
+
+        function doRequest() {
+            $.ajax({
+                url: "http://localhost:9000/stats",
+                success: function (data) {
+
+                    $("#pledged").text(parseFloat(data.project.pledged).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                    $("#backers").text(parseFloat(data.project.backers_count).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                    $("#comments").text(parseFloat(data.project.comments_count).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+
+                    snapshots.push(data)
+                    snapshots = snapshots.length === 201 ? snapshots.slice(1) : snapshots;
+
+                    setupCharts();
+                    setupPercentage()
+                },
+            });
+        }
+
+        function setupCharts() {
+            var ctx_pledged = document.getElementById('chart_pledged').getContext('2d');
+            var chat_pledged = new Chart(ctx_pledged, {
+                type: 'line',
+                data: {
+                    labels: snapshots.map(snapshot => ""),
+                    datasets: [
+                        {
+                            label: 'Pledged',
+                            backgroundColor: 'transparent',
+                            borderColor: '#00cc00',
+                            data: snapshots.map(snapshot => snapshot.project.pledged)
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            var ctx_backers = document.getElementById('chart_backers').getContext('2d');
+            var chat_backers = new Chart(ctx_backers, {
+                type: 'line',
+                data: {
+                    labels: snapshots.map(snapshot => ""),
+                    datasets: [
+                        {
+                            label: 'Backers',
+                            backgroundColor: 'transparent',
+                            borderColor: '#0000cc',
+                            data: snapshots.map(snapshot => snapshot.project.backers_count)
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            var ctx_comments = document.getElementById('chart_comments').getContext('2d');
+            var chart_comments = new Chart(ctx_comments, {
+                type: 'line',
+                data: {
+                    labels: snapshots.map(snapshot => ""),
+                    datasets: [
+                        {
+                            label: 'Comments',
+                            backgroundColor: 'transparent',
+                            borderColor: '#cc0000',
+                            data: snapshots.map(snapshot => snapshot.project.comments_count)
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function setupPercentage() {
+            const total = 13544.00;
+            const pledged = snapshots[snapshots.length - 1].project.pledged;
+            const percentage = parseFloat(pledged * 100 / total).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            $("#founded").text(percentage + " %")
+            $("#percentage_indicator").css("width", percentage < 100 ? percentage : 100 + "%")
+        }
+
+    </script>
+
+</body>
+
+</html>
